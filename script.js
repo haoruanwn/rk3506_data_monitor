@@ -68,22 +68,52 @@ function updatePacketRate() {
   }
 }
 
-// WebSocket事件处理
+// 更新服务器状态
+function updateServerStatus(isConnected) {
+  const statusElem = document.getElementById('serverStatus');
+  const statusTextElem = document.getElementById('serverStatusText');
+
+  if (isConnected) {
+    statusElem.className = 'connection-status status-connected';
+    statusTextElem.textContent = '已连接';
+  } else {
+    statusElem.className = 'connection-status status-disconnected';
+    statusTextElem.textContent = '已断开';
+  }
+}
+
+
+// --- WebSocket事件处理 ---
+
 ws.onopen = () => {
   updateStatus(true, '已连接到数据服务');
   startTime = Date.now();
 };
 
+// 这是合并修正后的、唯一的 ws.onmessage 函数
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  packetCounter++;
+  const now = new Date();
 
-  // 更新设备信息
+  // 检查是否是心跳消息
+  if (data.raw && data.raw.includes("HEARTBEAT")) {
+    document.getElementById('lastHeartbeat').textContent = now.toLocaleTimeString();
+    updateServerStatus(true);
+    return; // 心跳消息处理完毕，直接返回
+  }
+  
+  // --- 以下是处理普通数据包的完整逻辑 ---
+
+  // 1. 更新统计数据
+  packetCounter++;
+  document.getElementById('lastDataTime').textContent = now.toLocaleTimeString();
+  
+  // 2. 更新设备信息
   deviceId.textContent = data.device_id || 'DEVICE_001';
   updateLastActive(data.timestamp);
   updatePacketCount();
 
-  // 创建新的数据项
+  // 3. 创建新的数据项并显示
   const dataItem = document.createElement('div');
   dataItem.className = 'data-item';
 
@@ -98,10 +128,10 @@ ws.onmessage = (event) => {
   dataItem.appendChild(dataContent);
   dataItem.appendChild(dataTime);
 
-  // 添加到数据容器顶部
+  // 4. 添加到数据容器顶部
   dataContainer.insertBefore(dataItem, dataContainer.firstChild);
 
-  // 保留最近的50条消息
+  // 5. 移除旧数据，只保留最近的50条
   if (dataContainer.children.length > 50) {
     dataContainer.removeChild(dataContainer.lastChild);
   }
@@ -120,39 +150,8 @@ ws.onclose = () => {
   }, 3000);
 };
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-
-  // 如果是心跳响应
-  if (data.raw.includes("HEARTBEAT")) {
-    document.getElementById('lastHeartbeat').textContent =
-      new Date().toLocaleTimeString();
-    updateServerStatus(true);
-  }
-  // 如果是普通数据
-  else {
-    // ...原有处理逻辑...
-    document.getElementById('lastDataTime').textContent =
-      new Date().toLocaleTimeString();
-  }
-};
-
-// 初始化时钟
+// --- 初始化时钟 ---
 updateClock();
 setInterval(updateClock, 1000);
 setInterval(updateUptime, 1000);
 setInterval(updatePacketRate, 500);
-
-// 更新服务器状态
-function updateServerStatus(isConnected) {
-  const statusElem = document.getElementById('serverStatus');
-  const statusText = document.getElementById('serverStatusText');
-
-  if (isConnected) {
-    statusElem.className = 'connection-status status-connected';
-    statusText.textContent = '已连接';
-  } else {
-    statusElem.className = 'connection-status status-disconnected';
-    statusText.textContent = '已断开';
-  }
-}

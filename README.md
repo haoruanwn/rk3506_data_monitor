@@ -5,3 +5,5 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 ```
+
+http://localhost:8000/monitor.html
