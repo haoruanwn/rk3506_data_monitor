@@ -7,3 +7,7 @@ pip install -r requirements.txt
 ```
 
 http://localhost:8000/monitor.html
+
+python3 data_bridge.py
+
+python3 -m http.server
