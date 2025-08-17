@@ -9,12 +9,16 @@ const packetRate = document.getElementById('packetRate');
 const deviceId = document.getElementById('deviceId');
 const uptime = document.getElementById('uptime');
 const currentTime = document.getElementById('currentTime');
+const wsStatusText = document.getElementById('wsStatusText');
+const tcpStatusText = document.getElementById('tcpStatusText');
 
 // 状态变量
 let packetCounter = 0;
 let startTime = Date.now();
 let lastSecondPackets = 0;
 let lastSecondTime = Date.now();
+let isWsConnected = false;
+let isTcpConnected = false;
 
 // 初始化WebSocket连接
 const ws = new WebSocket('ws://localhost:8765');
@@ -38,10 +42,26 @@ function updateUptime() {
 
 // 更新状态显示
 function updateStatus(isConnected, message) {
+  isWsConnected = isConnected;
   statusIndicator.className = isConnected ?
     'status-indicator connected' : 'status-indicator';
   statusText.textContent = message;
   connectionStatus.textContent = isConnected ? '已连接' : '未连接';
+  wsStatusText.textContent = isConnected ? '已连接' : '未连接';
+  wsStatusText.className = isConnected ? 'tcp-connected' : 'tcp-disconnected';
+
+  // 更新整体连接状态
+  updateServerStatus(isWsConnected && isTcpConnected);
+}
+
+// 更新TCP连接状态
+function updateTcpStatus(isConnected) {
+  isTcpConnected = isConnected;
+  tcpStatusText.textContent = isConnected ? '已连接' : '已断开';
+  tcpStatusText.className = isConnected ? 'tcp-connected' : 'tcp-disconnected';
+
+  // 更新整体连接状态
+  updateServerStatus(isWsConnected && isTcpConnected);
 }
 
 // 更新最后活跃时间
@@ -69,45 +89,44 @@ function updatePacketRate() {
 }
 
 // 更新服务器状态
-function updateServerStatus(isConnected) {
+function updateServerStatus(allConnected) {
   const statusElem = document.getElementById('serverStatus');
-  const statusTextElem = document.getElementById('serverStatusText');
 
-  if (isConnected) {
+  if (allConnected) {
     statusElem.className = 'connection-status status-connected';
-    statusTextElem.textContent = '已连接';
   } else {
     statusElem.className = 'connection-status status-disconnected';
-    statusTextElem.textContent = '已断开';
   }
 }
-
 
 // --- WebSocket事件处理 ---
 
 ws.onopen = () => {
-  updateStatus(true, '已连接到数据服务');
+  updateStatus(true, '已连接到数据桥接服务');
   startTime = Date.now();
 };
 
-// 这是合并修正后的、唯一的 ws.onmessage 函数
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   const now = new Date();
 
+  // 处理状态更新消息
+  if (data.type === "status") {
+    updateTcpStatus(data.status === "connected");
+    return;
+  }
+
   // 检查是否是心跳消息
   if (data.raw && data.raw.includes("HEARTBEAT")) {
     document.getElementById('lastHeartbeat').textContent = now.toLocaleTimeString();
-    updateServerStatus(true);
-    return; // 心跳消息处理完毕，直接返回
+    updateTcpStatus(true);
+    return;
   }
-  
-  // --- 以下是处理普通数据包的完整逻辑 ---
 
   // 1. 更新统计数据
   packetCounter++;
   document.getElementById('lastDataTime').textContent = now.toLocaleTimeString();
-  
+
   // 2. 更新设备信息
   deviceId.textContent = data.device_id || 'DEVICE_001';
   updateLastActive(data.timestamp);

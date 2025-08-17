@@ -212,3 +212,16 @@ footer {
   background-color: #f8d7da !important;
   color: #721c24;
 }
+
+.status-connecting {
+  background-color: #fff3cd !important;
+  color: #856404;
+}
+
+.tcp-connected {
+  color: var(--success);
+}
+
+.tcp-disconnected {
+  color: var(--danger);
+}

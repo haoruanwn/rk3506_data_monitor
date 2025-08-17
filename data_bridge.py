@@ -27,7 +27,47 @@ HEARTBEAT_INTERVAL = 30         # 心跳间隔(秒)
 
 # 全局数据结构
 connected_clients = set()
+connection_status = False
 last_data = {"raw": "等待数据...", "timestamp": datetime.now().isoformat()}
+
+async def broadcast_status(status):
+    """广播连接状态给所有WebSocket客户端"""
+    global connection_status
+    connection_status = status
+    message = json.dumps({
+        "type": "status",
+        "status": "connected" if status else "disconnected",
+        "timestamp": datetime.now().isoformat()
+    })
+    if connected_clients:
+        await asyncio.gather(
+            *[client.send(message) for client in connected_clients],
+            return_exceptions=True
+        )
+
+async def tcp_client():
+    """TCP客户端连接和数据处理"""
+    global connection_status
+    while True:
+        try:
+            logging.info(f"正在连接服务器 {SERVER_ADDR}:{SERVER_PORT}...")
+            
+            # 创建TCP连接
+            reader, writer = await asyncio.open_connection(SERVER_ADDR, SERVER_PORT)
+            logging.info("成功连接到服务器!")
+            await broadcast_status(True)
+            
+            # ... 原有代码保持不变 ...
+            
+        except (ConnectionRefusedError, OSError) as e:
+            logging.error(f"连接错误: {e}")
+            await broadcast_status(False)
+        except Exception as e:
+            logging.error(f"发生错误: {e}")
+            await broadcast_status(False)
+        
+        logging.info(f"{RETRY_DELAY}秒后尝试重新连接...")
+        await asyncio.sleep(RETRY_DELAY)
 
 async def websocket_server(websocket):
     """WebSocket 服务器处理函数"""
