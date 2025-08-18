@@ -3,83 +3,274 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RK3506 数据监控面板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RK3506 综合监控系统</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!DOCTYPE html>
+  <html lang="zh-CN">
 </head>
 
 <body>
-  <div class="container">
-    <header>
-      <h1><i class="fas fa-microchip"></i> RK3506 开发板数据监控</h1>
-      <div class="status-container">
-        <div class="status-indicator" id="statusIndicator"></div>
-        <span id="statusText">正在连接数据服务...</span>
+  <!-- 登录页面 -->
+  <div id="loginPage" class="login-container">
+    <div class="login-box">
+      <h2 class="login-title"><i class="fas fa-microchip"></i> RK3506 监控系统</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">用户名</label>
+          <input type="text" id="username" class="form-control" placeholder="请输入用户名" required>
+        </div>
+        <div class="form-group">
+          <label for="password">密码</label>
+          <input type="password" id="password" class="form-control" placeholder="请输入密码" required>
+        </div>
+        <button type="submit" class="btn">登录</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 主系统框架 -->
+  <div id="mainSystem" style="display:none;">
+    <!-- 侧边导航 -->
+    <div class="sidebar">
+      <div class="logo">
+        <h2><i class="fas fa-microchip"></i> <span>RK3506</span></h2>
       </div>
-    </header>
-
-    <div class="dashboard">
-      <!-- 实时数据流 -->
-      <div class="card">
-        <h2><i class="fas fa-stream"></i> 实时数据流</h2>
-        <div class="data-display" id="dataContainer">
-          <div class="data-item">
-            <div class="data-content">等待数据连接...</div>
-            <div class="data-time">--:--:--</div>
-          </div>
+      <div class="nav-menu">
+        <div class="nav-item active" data-page="dashboard">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>主控面板</span>
         </div>
-      </div>
-
-      <!-- 设备状态 -->
-      <div class="card">
-        <h2><i class="fas fa-info-circle"></i> 设备状态</h2>
-        <div class="device-info">
-          <div class="info-item">
-            <span class="info-label">设备ID</span>
-            <span class="info-value" id="deviceId">DEVICE_001</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">最后活跃</span>
-            <span class="info-value" id="lastActive">--:--:--</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">连接状态</span>
-            <span class="info-value" id="connectionStatus">未连接</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">运行时间</span>
-            <span class="info-value" id="uptime">00:00:00</span>
-          </div>
+        <div class="nav-item" data-page="monitor">
+          <i class="fas fa-thermometer-half"></i>
+          <span>数据监测</span>
         </div>
-
-        <h2 style="margin-top: 25px;"><i class="fas fa-chart-bar"></i> 数据统计</h2>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value" id="packetCount">0</div>
-            <div class="stat-label">数据包总数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="packetRate">0/s</div>
-            <div class="stat-label">接收速率</div>
-          </div>
+        <div class="nav-item" data-page="traffic">
+          <i class="fas fa-chart-line"></i>
+          <span>流量管理</span>
         </div>
-
-        <div class="connection-status" id="serverStatus">
-          <h3>服务器连接状态</h3>
-          <p>WebSocket状态: <span id="wsStatusText">未知</span></p>
-          <p>TCP服务器状态: <span id="tcpStatusText">未知</span></p>
-          <p>最后心跳: <span id="lastHeartbeat">--:--:--</span></p>
-          <p>最后数据: <span id="lastDataTime">--:--:--</span></p>
+        <div class="nav-item" data-page="user">
+          <i class="fas fa-users"></i>
+          <span>用户管理</span>
+        </div>
+        <div class="nav-item" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>退出登录</span>
         </div>
       </div>
     </div>
 
-    <footer>
-      <p>RK3506 监控系统 &copy; 2023 | 数据更新时间: <span id="currentTime">--:--:--</span></p>
-    </footer>
-  </div>
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <header>
+        <div class="header-left">
+          <h1><i class="fas fa-microchip"></i> RK3506 开发板监控系统</h1>
+        </div>
+        <div class="header-right">
+          <div class="user-info">
+            <div class="avatar">U</div>
+            <div>
+              <div>管理员</div>
+              <div id="currentTime" style="font-size:0.8rem;color:#777;">--:--:--</div>
+            </div>
+          </div>
+        </div>
+      </header>
 
+      <div class="page-container">
+        <!-- 主控面板 -->
+        <div id="dashboardPage" class="page active">
+          <div class="card">
+            <h2><i class="fas fa-cloud-sun"></i> 实时天气</h2>
+            <div class="weather-card">
+              <div class="weather-icon">
+                <i class="fas fa-sun"></i>
+              </div>
+              <div class="weather-info">
+                <div class="weather-temp">28°C</div>
+                <div class="weather-location">杭州 · 临安</div>
+                <div class="weather-details">
+                  <div class="weather-detail">
+                    <i class="fas fa-wind"></i> 风速: 3.5km/h
+                  </div>
+                  <div class="weather-detail">
+                    <i class="fas fa-tint"></i> 湿度: 65%
+                  </div>
+                  <div class="weather-detail">
+                    <i class="fas fa-compress-alt"></i> 气压: 1013hPa
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2><i class="fas fa-server"></i> 服务器状态</h2>
+            <div class="status-container">
+              <div class="status-indicator connected" id="statusIndicator"></div>
+              <span id="statusText">已连接到数据服务</span>
+            </div>
+            <div class="connection-status status-connected">
+              <div class="info-item">
+                <span class="info-label">WebSocket状态:</span>
+                <span class="info-value tcp-connected" id="wsStatusText">已连接</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">TCP服务器状态:</span>
+                <span class="info-value tcp-connected" id="tcpStatusText">已连接</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">最后心跳:</span>
+                <span class="info-value" id="lastHeartbeat">--:--:--</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">最后数据:</span>
+                <span class="info-value" id="lastDataTime">--:--:--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2><i class="fas fa-microchip"></i> 设备状态</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value" id="packetCount">0</div>
+                <div class="stat-label">数据包总数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="packetRate">0/s</div>
+                <div class="stat-label">接收速率</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="deviceTemp">--</div>
+                <div class="stat-label">设备温度</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="deviceHumi">--</div>
+                <div class="stat-label">设备湿度</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数据监测页面 -->
+        <div id="monitorPage" class="page">
+          <div class="card">
+            <h2><i class="fas fa-thermometer-half"></i> 温度湿度监测</h2>
+            <div class="chart-container">
+              <canvas id="tempHumidityChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2><i class="fas fa-info-circle"></i> 设备信息</h2>
+            <div class="device-info">
+              <div class="info-item">
+                <span class="info-label">设备ID</span>
+                <span class="info-value" id="monitorDeviceId">DEVICE_001</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">最后活跃</span>
+                <span class="info-value" id="monitorLastActive">--:--:--</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">连接状态</span>
+                <span class="info-value" id="monitorConnectionStatus">已连接</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">运行时间</span>
+                <span class="info-value" id="monitorUptime">00:00:00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 流量管理页面 -->
+        <div id="trafficPage" class="page">
+          <div class="card">
+            <h2><i class="fas fa-stream"></i> 实时数据流</h2>
+            <div class="data-display" id="dataContainer">
+              <div class="data-item">
+                <div class="data-content">等待数据连接...</div>
+                <div class="data-time">--:--:--</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2><i class="fas fa-chart-bar"></i> 数据统计</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value" id="trafficPacketCount">0</div>
+                <div class="stat-label">数据包总数</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="trafficPacketRate">0/s</div>
+                <div class="stat-label">接收速率</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 用户管理页面 -->
+        <div id="userPage" class="page">
+          <div class="card">
+            <h2><i class="fas fa-users"></i> 用户管理</h2>
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>用户名</th>
+                  <th>姓名</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                  <th>最后登录</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>admin</td>
+                  <td>系统管理员</td>
+                  <td>管理员</td>
+                  <td><span style="color:var(--success);">在线</span></td>
+                  <td>2023-10-15 14:30</td>
+                </tr>
+                <tr>
+                  <td>tech1</td>
+                  <td>张工程师</td>
+                  <td>技术人员</td>
+                  <td><span style="color:var(--success);">在线</span></td>
+                  <td>2023-10-15 13:45</td>
+                </tr>
+                <tr>
+                  <td>tech2</td>
+                  <td>李工程师</td>
+                  <td>技术人员</td>
+                  <td><span style="color:var(--warning);">离线</span></td>
+                  <td>2023-10-14 09:20</td>
+                </tr>
+                <tr>
+                  <td>monitor1</td>
+                  <td>王监控员</td>
+                  <td>监控人员</td>
+                  <td><span style="color:var(--success);">在线</span></td>
+                  <td>2023-10-15 10:15</td>
+                </tr>
+                <tr>
+                  <td>guest</td>
+                  <td>访客用户</td>
+                  <td>访客</td>
+                  <td><span style="color:var(--warning);">离线</span></td>
+                  <td>2023-10-12 16:40</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <script src="script.js"></script>
 </body>
 
