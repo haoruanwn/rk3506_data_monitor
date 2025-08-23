@@ -80,9 +80,7 @@ body {
 /* 主内容区样式 */
 .main-content {
   flex: 1;
-  margin-left: var(--sidebar-width);
   padding-top: var(--header-height);
-  min-height: 100vh;
 }
 
 header {
@@ -163,7 +161,7 @@ header {
   padding: 25px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s ease;
-  margin-bottom: 20px;
+  margin-left: 500px;
 }
 
 .card:hover {
@@ -612,4 +610,158 @@ html {
   .btn {
     padding: 15px;
   }
+}
+
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* 修复卡片在移动设备上的显示 */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    margin-bottom: 15px;
+    padding: 15px;
+  }
+
+  /* 修复数据监测页面的布局 */
+  #monitorPage .card {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  /* 修复流量管理页面的布局 */
+  #trafficPage .card {
+    width: 100%;
+  }
+
+  /* 修复用户管理表格的显示 */
+  .user-table {
+    font-size: 0.8rem;
+  }
+
+  .user-table th,
+  .user-table td {
+    padding: 8px 10px;
+  }
+}
+
+/* 针对平板设备的优化 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* 确保卡片不会过宽 */
+  .card {
+    max-width: 100%;
+  }
+}
+
+/* 修复数据展示区域的布局 */
+.data-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+}
+
+/* 修复图表容器 */
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+/* 修复用户表格的响应式设计 */
+.user-table-container {
+  overflow-x: auto;
+}
+
+.user-table {
+  min-width: 600px;
+}
+
+/* 修复页面容器布局 */
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 修复导航菜单在移动设备上的显示 */
+@media (max-width: 768px) {
+  .nav-menu {
+    padding: 10px 0;
+  }
+
+  .nav-item {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+}
+
+/* 修复头部布局 */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+}
+
+/* 修复天气卡片布局 */
+.weather-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+@media (max-width: 480px) {
+  .weather-card {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* 修复状态指示器布局 */
+.status-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.connection-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
 }

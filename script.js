@@ -9,14 +9,14 @@ const logoutBtn = document.getElementById('logoutBtn');
 
 // 模拟设备数据
 const sampleData = [
-  "Node:Node Mock 01, Temp:28.5, Humi:65.2",
-  "Node:Node Mock 01, Temp:28.7, Humi:64.8",
-  "Node:Node Mock 01, Temp:29.0, Humi:64.5",
-  "Node:Node Mock 01, Temp:28.8, Humi:64.7",
-  "Node:Node Mock 01, Temp:28.6, Humi:65.0",
-  "Node:Node Mock 01, Temp:28.9, Humi:64.3",
-  "Node:Node Mock 01, Temp:29.2, Humi:63.9",
-  "Node:Node Mock 01, Temp:29.1, Humi:64.1"
+  "Node:Node_01, AirTemp:28.5, AirHumi:65.2, SoilWet:45.0",
+  "Node:Node_01, AirTemp:28.7, AirHumi:64.8, SoilWet:45.2",
+  "Node:Node_01, AirTemp:29.0, AirHumi:64.5, SoilWet:45.5",
+  "Node:Node_01, AirTemp:28.8, AirHumi:64.7, SoilWet:45.3",
+  "Node:Node_01, AirTemp:28.6, AirHumi:65.0, SoilWet:45.1",
+  "Node:Node_01, AirTemp:28.9, AirHumi:64.3, SoilWet:45.7",
+  "Node:Node_01, AirTemp:29.2, AirHumi:63.9, SoilWet:46.0",
+  "Node:Node_01, AirTemp:29.1, AirHumi:64.1, SoilWet:45.8"
 ];
 
 // 初始化变量
@@ -50,6 +50,30 @@ logoutBtn.addEventListener('click', function () {
   document.getElementById('password').value = '';
 });
 
+// 添加页面切换时的布局调整
+function adjustLayoutForPage(pageId) {
+  // 给一点延迟确保DOM完全渲染
+  setTimeout(() => {
+    if (pageId === 'monitorPage') {
+      // 数据监测页面特定布局调整
+      initChart();
+    } else if (pageId === 'trafficPage') {
+      // 流量管理页面特定布局调整
+      const dataContainer = document.getElementById('dataContainer');
+      if (dataContainer.children.length === 0) {
+        dataContainer.innerHTML = '<div class="data-item"><div class="data-content">等待数据连接...</div><div class="data-time">--:--:--</div></div>';
+      }
+    } else if (pageId === 'userPage') {
+      // 用户管理页面特定布局调整
+      // 不需要特殊处理
+    }
+
+    // 触发resize事件以确保图表正确渲染
+    window.dispatchEvent(new Event('resize'));
+  }, 100);
+}
+
+
 // 导航切换
 navItems.forEach(item => {
   if (item.id !== 'logoutBtn') {
@@ -62,12 +86,11 @@ navItems.forEach(item => {
 
       // 显示目标页面
       pages.forEach(page => page.classList.remove('active'));
-      document.getElementById(`${targetPage}Page`).classList.add('active');
+      const targetPageElement = document.getElementById(`${targetPage}Page`);
+      targetPageElement.classList.add('active');
 
-      // 如果是监控页面，初始化图表
-      if (targetPage === 'monitor') {
-        initChart();
-      }
+      // 调整特定页面的布局
+      adjustLayoutForPage(`${targetPage}Page`);
     });
   }
 });
@@ -112,12 +135,14 @@ function updatePacketRate() {
 
 // 解析设备数据
 function parseDeviceData(data) {
-  const tempMatch = data.match(/Temp:([\d.]+)/);
-  const humiMatch = data.match(/Humi:([\d.]+)/);
+  const airTempMatch = data.match(/AirTemp:([\d.]+)/);
+  const airHumiMatch = data.match(/AirHumi:([\d.]+)/);
+  const soilWetMatch = data.match(/SoilWet:([\d.]+)/);
 
   return {
-    temperature: tempMatch ? parseFloat(tempMatch[1]) : null,
-    humidity: humiMatch ? parseFloat(humiMatch[1]) : null
+    airTemperature: airTempMatch ? parseFloat(airTempMatch[1]) : null,
+    airHumidity: airHumiMatch ? parseFloat(airHumiMatch[1]) : null,
+    soilWetness: soilWetMatch ? parseFloat(soilWetMatch[1]) : null
   };
 }
 
@@ -129,36 +154,51 @@ function initChart() {
     tempHumidityChart.destroy();
   }
 
-  // 模拟一些数据
+  // 模拟数据
   const labels = [];
-  const tempData = [];
-  const humiData = [];
+  const airTempData = [];
+  const airHumiData = [];
+  const soilWetData = [];
 
   for (let i = 7; i >= 0; i--) {
     labels.push(`${i * 5}分钟前`);
     const data = parseDeviceData(sampleData[i]);
-    tempData.push(data.temperature);
-    humiData.push(data.humidity);
+    airTempData.push(data.airTemperature);
+    airHumiData.push(data.airHumidity);
+    soilWetData.push(data.soilWetness);
   }
 
   tempHumidityChart = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: labels,
       datasets: [
         {
-          label: '温度 (°C)',
-          data: tempData,
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          label: '空气温度 (°C)',
+          data: airTempData,
           borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false
         },
         {
-          label: '湿度 (%)',
-          data: humiData,
-          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          label: '空气湿度 (%)',
+          data: airHumiData,
           borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false
+        },
+        {
+          label: '土壤湿度 (%)',
+          data: soilWetData,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: false
         }
       ]
     },
@@ -180,7 +220,7 @@ function initChart() {
         },
         title: {
           display: true,
-          text: '温度湿度变化趋势'
+          text: '环境数据监测'
         }
       }
     }
@@ -204,12 +244,15 @@ function simulateData() {
   document.getElementById('monitorDeviceId').textContent = 'DEVICE_001';
   document.getElementById('monitorLastActive').textContent = now.toLocaleTimeString();
 
-  // 更新温度湿度显示
-  if (parsedData.temperature !== null) {
-    document.getElementById('deviceTemp').textContent = `${parsedData.temperature}°C`;
+  // 更新空气温度、空气湿度和土壤湿度显示
+  if (parsedData.airTemperature !== null) {
+    document.getElementById('airTemp').textContent = `${parsedData.airTemperature}°C`;
   }
-  if (parsedData.humidity !== null) {
-    document.getElementById('deviceHumi').textContent = `${parsedData.humidity}%`;
+  if (parsedData.airHumidity !== null) {
+    document.getElementById('airHumi').textContent = `${parsedData.airHumidity}%`;
+  }
+  if (parsedData.soilWetness !== null) {
+    document.getElementById('soilWet').textContent = `${parsedData.soilWetness}%`;
   }
 
   // 更新数据包计数
@@ -218,6 +261,12 @@ function simulateData() {
   // 在流量页面添加数据项
   if (document.getElementById('trafficPage').classList.contains('active')) {
     const dataContainer = document.getElementById('dataContainer');
+
+    // 清除"等待数据连接"提示
+    if (dataContainer.children.length === 1 &&
+      dataContainer.children[0].textContent.includes('等待数据连接')) {
+      dataContainer.innerHTML = '';
+    }
 
     // 创建新的数据项
     const dataItem = document.createElement('div');
@@ -244,17 +293,25 @@ function simulateData() {
   }
 
   // 更新图表数据（如果图表已初始化）
-  if (tempHumidityChart) {
-    const tempData = tempHumidityChart.data.datasets[0].data;
-    const humiData = tempHumidityChart.data.datasets[1].data;
+  if (tempHumidityChart && document.getElementById('monitorPage').classList.contains('active')) {
+    const airTempData = tempHumidityChart.data.datasets[0].data;
+    const airHumiData = tempHumidityChart.data.datasets[1].data;
+    const soilWetData = tempHumidityChart.data.datasets[2].data;
 
     // 移除第一个数据点
-    tempData.shift();
-    humiData.shift();
+    airTempData.shift();
+    airHumiData.shift();
+    soilWetData.shift();
 
     // 添加新数据点
-    tempData.push(parsedData.temperature);
-    humiData.push(parsedData.humidity);
+    airTempData.push(parsedData.airTemperature);
+    airHumiData.push(parsedData.airHumidity);
+    soilWetData.push(parsedData.soilWetness);
+
+    // 更新标签
+    const labels = tempHumidityChart.data.labels;
+    labels.shift();
+    labels.push(now.toLocaleTimeString());
 
     // 更新图表
     tempHumidityChart.update();
@@ -308,6 +365,22 @@ function detectDeviceAndAdapt() {
 
 // 在页面加载时立即检测一次
 window.addEventListener('DOMContentLoaded', detectDeviceAndAdapt);
+
+// 页面加载完成后初始化
+window.addEventListener('DOMContentLoaded', function () {
+  // 初始化图表
+  if (document.getElementById('monitorPage').classList.contains('active')) {
+    initChart();
+  }
+
+  // 初始化数据容器
+  if (document.getElementById('trafficPage').classList.contains('active')) {
+    const dataContainer = document.getElementById('dataContainer');
+    if (dataContainer.children.length === 0) {
+      dataContainer.innerHTML = '<div class="data-item"><div class="data-content">等待数据连接...</div><div class="data-time">--:--:--</div></div>';
+    }
+  }
+});
 
 
 // 处理设备方向变化
