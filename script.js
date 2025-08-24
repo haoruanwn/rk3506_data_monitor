@@ -26,6 +26,8 @@ let lastSecondPackets = 0;
 let lastSecondTime = Date.now();
 let tempHumidityChart = null;
 
+
+
 // 登录功能
 loginForm.addEventListener('submit', function (e) {
   e.preventDefault();
@@ -147,25 +149,29 @@ function parseDeviceData(data) {
 }
 
 // 初始化图表
-function initChart() {
+function initChart(empty = false) {
   const ctx = document.getElementById('tempHumidityChart').getContext('2d');
-
   if (tempHumidityChart) {
-    tempHumidityChart.destroy();
+      tempHumidityChart.destroy();
   }
 
-  // 模拟数据
   const labels = [];
   const airTempData = [];
   const airHumiData = [];
   const soilWetData = [];
 
-  for (let i = 7; i >= 0; i--) {
-    labels.push(`${i * 5}分钟前`);
-    const data = parseDeviceData(sampleData[i]);
-    airTempData.push(data.airTemperature);
-    airHumiData.push(data.airHumidity);
-    soilWetData.push(data.soilWetness);
+  if (empty) {
+      // 创建一个带有8个空标签的图表，等待数据填充
+      for (let i = 0; i < 8; i++) labels.push('');
+  } else {
+        // (这部分代码现在不会被调用，但保留以备后用)
+      for (let i = 7; i >= 0; i--) {
+          labels.push(`${i * 5}分钟前`);
+          const data = parseDeviceData(sampleData[i]);
+          airTempData.push(data.airTemperature);
+          airHumiData.push(data.airHumidity);
+          soilWetData.push(data.soilWetness);
+      }
   }
 
   tempHumidityChart = new Chart(ctx, {
@@ -318,6 +324,113 @@ function simulateData() {
   }
 }
 
+function connectWebSocket() {
+    // 请确保这里的 IP 地址和端口与您的 data_bridge.py 服务匹配
+    // 如果您在本地运行，就是 'ws://localhost:8765'
+    // 如果部署在服务器上，请替换为 'ws://服务器IP:8765'
+    const ws = new WebSocket('ws://localhost:8765');
+
+    ws.onopen = function() {
+        console.log('成功连接到 WebSocket 数据服务！');
+        document.getElementById('statusText').textContent = '已连接到数据服务';
+        document.getElementById('statusIndicator').classList.add('connected');
+        document.getElementById('wsStatusText').textContent = '已连接';
+        // 清除可能存在的"等待数据"提示
+        const dataContainer = document.getElementById('dataContainer');
+        if (dataContainer.children.length === 1 && dataContainer.children[0].textContent.includes('等待数据连接')) {
+            dataContainer.innerHTML = '';
+        }
+    };
+
+    ws.onmessage = function(event) {
+        // 我们的 Python 服务发送的是 JSON 字符串，所以先解析
+        const message = JSON.parse(event.data);
+        
+        // 检查消息类型，我们只处理原始数据广播
+        if (message.raw) {
+            processRealData(message.raw);
+        }
+    };
+
+    ws.onclose = function() {
+        console.log('WebSocket 连接已断开，5秒后尝试重连...');
+        document.getElementById('statusText').textContent = '数据服务已断开';
+        document.getElementById('statusIndicator').classList.remove('connected');
+        document.getElementById('wsStatusText').textContent = '已断开';
+        // 简单的自动重连机制
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onerror = function(error) {
+        console.error('WebSocket 发生错误: ', error);
+        ws.close(); // 发生错误时主动关闭，触发 onclose 中的重连逻辑
+    };
+}
+
+function processRealData(dataString) {
+    const now = new Date();
+    
+    // 解析数据
+    const parsedData = parseDeviceData(dataString);
+
+    // 更新数据包计数
+    packetCounter++;
+    document.getElementById('lastDataTime').textContent = now.toLocaleTimeString();
+
+    // 更新设备信息
+    document.getElementById('monitorDeviceId').textContent = 'DEVICE_001';
+    document.getElementById('monitorLastActive').textContent = now.toLocaleTimeString();
+
+    // 更新空气温度、空气湿度和土壤湿度显示
+    if (parsedData.airTemperature !== null) {
+        document.getElementById('airTemp').textContent = `${parsedData.airTemperature}°C`;
+    }
+    if (parsedData.airHumidity !== null) {
+        document.getElementById('airHumi').textContent = `${parsedData.airHumidity}%`;
+    }
+    if (parsedData.soilWetness !== null) {
+        document.getElementById('soilWet').textContent = `${parsedData.soilWetness}%`;
+    }
+
+    updatePacketCount();
+
+    // 在流量页面添加数据项
+    if (document.getElementById('trafficPage').classList.contains('active')) {
+        const dataContainer = document.getElementById('dataContainer');
+        const dataItem = document.createElement('div');
+        dataItem.className = 'data-item';
+        const dataContent = document.createElement('div');
+        dataContent.className = 'data-content';
+        dataContent.textContent = dataString;
+        const dataTime = document.createElement('div');
+        dataTime.className = 'data-time';
+        dataTime.textContent = now.toLocaleTimeString();
+        dataItem.appendChild(dataContent);
+        dataItem.appendChild(dataTime);
+        dataContainer.insertBefore(dataItem, dataContainer.firstChild);
+        if (dataContainer.children.length > 20) {
+            dataContainer.removeChild(dataContainer.lastChild);
+        }
+    }
+
+    // 更新图表数据
+    if (tempHumidityChart && document.getElementById('monitorPage').classList.contains('active')) {
+        const labels = tempHumidityChart.data.labels;
+        labels.shift();
+        labels.push(now.toLocaleTimeString());
+        
+        const datasets = tempHumidityChart.data.datasets;
+        datasets[0].data.shift();
+        datasets[0].data.push(parsedData.airTemperature);
+        datasets[1].data.shift();
+        datasets[1].data.push(parsedData.airHumidity);
+        datasets[2].data.shift();
+        datasets[2].data.push(parsedData.soilWetness);
+        
+        tempHumidityChart.update();
+    }
+}
+
 // 初始化系统
 function initSystem() {
   // 启动时钟
@@ -327,7 +440,10 @@ function initSystem() {
   setInterval(updatePacketRate, 500);
 
   // 模拟数据接收
-  setInterval(simulateData, 3000);
+  //  setInterval(simulateData, 3000);
+
+  // 启用 WebSocket 连接
+  connectWebSocket();
 
   // 初始化图表
   initChart();
